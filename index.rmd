@@ -1,8 +1,5 @@
 ---
 title: "Tutorials for microbiome analysis"
-output: 
-  prettydoc::html_pretty:
-    theme: lumen
 ---
 
 # Tutorials
