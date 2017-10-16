@@ -1,5 +1,13 @@
 ---
 title: "Tutorials for microbiome analysis"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    use_bookdown: false
+    highlight: haddock
 ---
 
 # Tutorials
