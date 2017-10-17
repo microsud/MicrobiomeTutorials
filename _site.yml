@@ -6,6 +6,6 @@ navbar:
     - text: "Home"
       href: index.html
     - text: "Microbiome Anlaysis"
-      href: test_tutorial.html
+      href: XXtest_tutorial.html
     - text: "Advanced Tutorials"
-      href: networks_tutorial.html
+      href: XXnetworks_tutorial.html
