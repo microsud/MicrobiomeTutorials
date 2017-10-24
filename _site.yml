@@ -5,7 +5,6 @@ navbar:
   left:
     - text: "Home"
       href: index.html
-    - text: "Microbiome Anlaysis"
-      href: XXtest_tutorial.html
-    - text: "Advanced Tutorials"
-      href: XXnetworks_tutorial.html
+    - text: "Microbiome Anlaysis Pipeline"
+      href: microbiome_report.html
+l
