@@ -5,6 +5,9 @@ navbar:
   left:
     - text: "Home"
       href: index.html
-    - text: "Microbiome Anlaysis Pipeline"
+    - text: "Microbiome Anlaysis"
       href: Example_report.html
-
+output:
+  html_document:
+    theme: flatly
+    css: style.css
