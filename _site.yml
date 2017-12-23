@@ -6,5 +6,5 @@ navbar:
     - text: "Home"
       href: index.html
     - text: "Microbiome Anlaysis Pipeline"
-      href: microbiome_report.html
+      href: Example_report.html
 l
