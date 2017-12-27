@@ -10,3 +10,6 @@ title: "Tutorials for microbiome analysis"
 
 **This website is still being developed, please do not use any of the information linked for analysis.**
 
+* [Microbiome Anlaysis Tutorial](microbiome_tutorial.html)
+
+* [Microbiome Analysis (microbiomeutilities)](Example_report.html)
