@@ -1,3 +1,6 @@
+
+
+
 name: "Microbiome"
 output_dir: "."
 navbar:
@@ -5,9 +8,16 @@ navbar:
   left:
     - text: "Home"
       href: index.html
-    - text: "Microbiome Anlaysis"
+    - text: "Microbiome Analysis (microbiomeutilities)"
       href: Example_report.html
+    - text: "Microbiome Anlaysis Tutorial"
+      href: microbiome_tutorial.html
 output:
-  html_document:
-    theme: flatly
-    css: style.css
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    use_bookdown: false
+    highlight: haddock
+    css: readthedown.css
