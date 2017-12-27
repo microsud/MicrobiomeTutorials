@@ -12,12 +12,4 @@ navbar:
       href: Example_report.html
     - text: "Microbiome Anlaysis Tutorial"
       href: microbiome_tutorial.html
-output:
-  rmdformats::readthedown:
-    self_contained: true
-    thumbnails: true
-    lightbox: true
-    gallery: true
-    use_bookdown: false
-    highlight: haddock
-    css: readthedown.css
+

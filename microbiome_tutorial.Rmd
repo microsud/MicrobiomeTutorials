@@ -1,0 +1,523 @@
+---
+title: "Microbiota anlaysis tutorial example"
+author: "Sudarshan A. Shetty"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    use_bookdown: false
+    highlight: haddock
+---
+
+This tutorial gets You started with basic R tools for microbial ecology using a toy data. In particular, to provide an introduction to 
+
+## Installation  
+
+Launch R/RStudio and install the microbiome R package see ([installation instructions](http://microbiome.github.io/microbiome/Installation.html)).
+
+For instructions on how to load different file formats into R see [import data](http://microbiome.github.io/microbiome/Data.html).  
+
+## Example data 
+
+A subset of human intestinal biopsy and faecal data from pre-print [Shetty SA et al. 2017](https://www.biorxiv.org/content/early/2017/12/06/227272).  
+
+This is a simplified version of various methods available these days to microbial ecologists. The ideology of putting all of this together is to share the information and also clarify the 'ease'(you see we didn't say 'simple') of using R-software and related packages. The analyses shown here are basic and aimed mostly at introducing the reader to commonly used packages, scripts and data analysis methods. Descision making related to different parameters will still be soley upon the user.  
+For more information you can have a look at [Phyloseq](http://joey711.github.io/phyloseq/) and [here](http://joey711.github.io/phyloseq-demo/phyloseq-demo.html).
+
+Important Note 1:  
+Wisdom1 - There is no substitute for careful reading, so read the tutorial first and then start playing with it.  
+Wisdom2 - never skip a step or piece of text, you might need a file that was generated previously.  Take your time and don't rush.
+
+Kindly cite all the packages tools that you have used in your analysis.
+
+## Load the libraries  
+
+
+```{r setup, warning=FALSE, message=FALSE}
+library(microbiome)
+library(knitr)
+library(ggpubr)
+library(reshape2)
+library(RColorBrewer)
+library(microbiomeutilities)
+library(viridis)
+
+```
+
+
+```{r}
+
+data("biogeogut")
+#save(biogeogut, file = "./inputdata/biogeogut.rda")
+#load("./inputdata/biogeogut.rda")
+ps1 <- biogeogut
+
+```
+
+## Pre-processing and QC
+
+```{r}
+
+# check the data
+
+print(ps1)
+
+# check if any OTUs are not present in any samples
+any(taxa_sums(ps1) == 0)
+
+```
+
+The answer is TRUE, mean yes and we need to remove them.  
+
+```{r}
+
+ps1a <- prune_taxa(taxa_sums(ps1) > 0, ps1)
+
+# check again if any OTUs are not present in any samples
+any(taxa_sums(ps1a) == 0)
+```
+
+"FALSE" means we have removed them.  
+
+```{r}
+
+# Check the taxonomy levels
+
+rank_names(ps1a)
+
+```
+
+Check how many reads/samples
+```{r}
+
+SeqDepth = colSums(otu_table(ps1a))
+sample_data(ps1a)$SeqDepth = SeqDepth
+qplot(log10(SeqDepth), geom = "histogram")
+
+# We use the main variable here of interest SampleType
+
+ggplot(meta(ps1a)) +
+    geom_histogram(aes(x = log10(SeqDepth)), alpha= 0.6) + facet_wrap(~SampleType) + theme_bw()
+
+sort(SeqDepth)
+
+# min number of reads
+min(SeqDepth)
+
+# max number of reads
+max(SeqDepth)
+
+```
+
+It is clear that there is big difference in the sequencing depth. Keep this in mind for downstream analysis.  
+If you have installed microbiome package from github then you can simple run the following command.  
+
+```{r}
+
+summarize_phyloseq(ps1a)
+
+```
+
+We have data which is not relative abundance, only counts in our case. sparsity is how populated is the data with zeros. There are also singletons, 24% of the total OTUs are observed only once. Depending on your research question, you can choose to remove them form further analysis.  
+
+
+```{r}
+
+# remove singletons
+
+ps1b <- prune_taxa(taxa_sums(ps1a) > 1, ps1a)
+
+summarize_phyloseq(ps1b)
+
+```
+
+
+```{r}
+
+# check for distribution of OTUs 
+
+hist(log10(taxa_sums(ps1b)))
+
+```
+
+The data is left tailed. Common for microbiome count data. 
+We can also look at how prevalent are OTUs.  
+
+```{r, fig.width=12, fig.height=10}
+
+prev.otu <- plot_taxa_prevalence(ps1a, "Phylum")
+
+print(prev.otu)
+
+```
+
+We can see that there are OTUs that are very low abundance and present in only few samples.  
+We will remove OTUs unclassified at phylum level 
+
+
+```{r}
+
+ps2 <- subset_taxa(ps1a, Phylum != "p__")
+
+unique(tax_table(ps2)[,"Phylum"])
+
+ps2a <- subset_taxa(ps2,Class!="Chloroplast")
+
+ps3 <- subset_taxa(ps2a,Order!="Mitochondria")
+
+```
+
+## Diversity
+
+Of specific interest in microbial ecology is the diversity of microbial communities.
+
+First we will calculate eveness. We will use unfiltered data with singletons.  
+```{r}
+
+#check which indices are available by simply typying the following and enter
+
+# ?evenness
+
+# there are several options
+
+ps.even <- evenness(ps1a, index = "all") 
+
+kable(head(ps.even))
+
+```
+
+**Plot**
+
+```{r}
+
+ps1a.meta <- meta(ps1a)
+
+ps1a.meta$simpson <- ps.even$simpson 
+
+```
+
+Before doing any statistical test check for the distribution of the diversity.  
+
+```{r}
+hist(ps1a.meta$simpson)
+# This data look ok
+
+# test is it is
+shapiro.test(ps1a.meta$simpson)
+
+qqnorm(ps1a.meta$simpson)
+
+```
+
+If you have more than two variable with a category then do the following. If only two variable like in this case Biopsy and faeces skip this chunk.  
+See also [main tutorial](http://microbiome.github.io/microbiome/PlotDiversity.html)
+
+```{r, eval=FALSE}
+# create a list of pairwise comaprisons
+smtype <- levels(ps1a.meta$SampleType) # get the variables
+
+# make a pairwise list that we want to compare.
+smtype.pairs <- combn(seq_along(smtype), 2, simplify = FALSE, FUN = function(i)smtype[i])
+
+print(smtype.pairs)
+
+```
+
+
+```{r}
+
+p1 <- ggviolin(ps1a.meta, x = "SampleType", y = "simpson",
+ add = "boxplot", fill = "SampleType", 
+ palette = c("#a6cee3", "#b2df8a"),
+ legend = "right") 
+
+print(p1)
+
+p1 <- p1 + stat_compare_means(method = "t.test")
+
+print(p1)
+
+```
+
+For more information and useful tips and suggestions check the [Statistical tools for high-throughput data analysis](http://www.sthda.com/english/rpkgs/ggpubr/). 
+
+For more option on diversity indices [Diversity](http://microbiome.github.io/microbiome/Diversity.html)
+
+## Beta diversity  
+
+Now we will check similarities in microbial community. Distance based matrices such as [Bray-Curtis](https://www.sciencedirect.com/science/article/pii/S0065250408601683), [Unifrac](http://aem.asm.org/content/71/12/8228.full) are commonly used and visualized using [ordination methods](http://ordination.okstate.edu/overview.htm).  
+
+We will remove some potential suporious OTUs from data.
+
+```{r}
+nsamples(ps3)
+
+# we will keep only those OTUs that are detected alteast 10 times in 5 out of total 14 samples
+ps4 <- core(ps3, detection = 10, prevalence = 5/nsamples(ps3))
+hist(log10(taxa_sums(ps4)))
+
+```
+
+Since, there is no phylogenetic tree for this data set, Bray-Curtis distance will be calculated.  
+
+```{r}
+
+ps4.rel <- microbiome::transform(ps4, "compositional")
+
+bx.ord_nmds_bray <- ordinate(ps4.rel, "NMDS", "bray")
+vegan::stressplot(bx.ord_nmds_bray)
+
+```
+
+
+```{r}
+
+beta.ps1 <- plot_ordination(ps4.rel, bx.ord_nmds_bray, color="Subject", label = "Subject") + geom_point(aes(shape = SampleType), size= 4) + theme(plot.title = element_text(hjust = 0, size = 12))
+beta.ps1 <- beta.ps1 + theme_bw(base_size = 14) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+# Now we can join the biopsy and stool from same subject
+beta.ps1 <- beta.ps1 + geom_line() + scale_color_brewer(palette = "Dark2")
+beta.ps1
+
+
+```
+
+**PERMANOVA**
+
+```{r}
+
+metadf.bx <- data.frame(sample_data(ps4.rel))
+bray_ps.bxn <- phyloseq::distance(physeq = ps4.rel, method = "bray")
+
+set.seed(995)
+# Adonis test
+library(vegan)
+adonis.test <- adonis(bray_ps.bxn ~ SampleType, data = metadf.bx)
+adonis.test
+
+```
+
+
+```{r}
+
+set.seed(959)
+# Adonis test
+#library(vegan)
+adonis.test1 <- adonis(bray_ps.bxn ~ Subject, data = metadf.bx)
+adonis.test1
+```
+
+**Checking the homogeneity condition**  
+
+```{r}
+
+# Note the assumption of similar multivariate spread among the groups
+# ie. analogous to variance homogeneity
+# Here the groups have signif. different spreads and
+# permanova result may be potentially explained by that.
+dist <- vegdist(t(abundances(ps4.rel)))
+anova(betadisper(dist, metadf.bx$SampleType))
+
+```
+
+A values of less than 0.05 for betadisper suggests that the sampletype has a significant differfences in overall microbiota composition.  
+
+
+## Quantifying group divergence / spread
+Divergence of a given sample set can be quantified as the average dissimilarity of each sample from the group mean; the dissimilarity can be quantified by beta diversity, for instance. This was applied in group-level comparisons for instance in [Salonen et al. ISME J 2014](https://www.nature.com/articles/ismej201463). They focused on homogeneity using inverse correlation, whereas here we focus on divergence using correlation but the measure is essentially the same. For more information, check [Beta diversity and microbiome divergence](http://microbiome.github.io/microbiome/Betadiversity.html)
+
+Calculate group divergences within the Biopsy and Stool samples
+
+```{r}
+
+b.st <- as.data.frame(divergence(subset_samples(ps4, SampleType == "Stool")))
+b.bx <- as.data.frame(divergence(subset_samples(ps4, SampleType == "Biopsy")))
+
+```
+
+Plot the divergence
+
+```{r}
+
+div_df <- data.frame(b.st, b.bx)
+colnames(div_df) <- c("Stool", "Biopsy")
+
+dif.g <- reshape2::melt(div_df)
+
+ggpubr::ggboxplot(dif.g, "variable", "value", 
+                  ylab = "Divergence", 
+                  xlab = "Sample Type", 
+                  add = "dotplot",
+                  fill = "variable",
+                  palette = c("#a6cee3", "#b2df8a"))
+
+
+```
+
+
+
+## Composition 
+
+```{r}
+
+ps1a.com <- ps1a
+
+taxic <- as.data.frame(ps1a.com@tax_table) 
+
+# Add the OTU ids from OTU table into the taxa table at the end.
+taxic$OTU <- rownames(taxic) 
+
+# You can see that we now have extra taxonomy levels.
+colnames(taxic)
+
+# convert it into a matrix.
+taxmat <- as.matrix(taxic)
+
+# convert into phyloseq compaitble file.
+new.tax <- tax_table(taxmat)  
+
+# incroporate into phyloseq Object
+tax_table(ps1a.com) <- new.tax 
+
+```
+
+*Phylum level*  
+
+```{r}
+
+
+pseq.ph <- aggregate_taxa(ps1a.com, "Phylum", top = 11)
+
+p.phy <- plot_composition(pseq.ph, sample.sort = NULL, otu.sort = NULL,
+  x.label = "SampleType", plot.type = "barplot", verbose = FALSE)
+
+print(p.phy + scale_fill_brewer(palette = "Paired"))
+
+```
+
+
+```{r}
+
+# it would be nice to have the Taxonomic names in italics.
+# for that we set this
+guide_italics <- guides(fill = guide_legend(label.theme = element_text(size = 15, 
+    face = "italic", colour = "Black", angle = 0)))
+
+pseq.ph.rel <- microbiome::transform(pseq.ph, "compositional")
+
+
+plot.comp.rel <- plot_composition(pseq.ph.rel, x.label = "SampleType") + theme(legend.position = "bottom") + theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90)) + 
+  ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size=18))
+plot.comp.rel + scale_fill_brewer(palette = "Paired")
+
+```
+
+
+## Boxplot  
+
+Check which are the top ten genera and how they differ between sample types.  
+
+```{r}
+
+pn <- plot_taxa_boxplot(ps4.rel, "Genus", 10, "SampleType", color = "Set2", "Relative abundance of top 10 genera")
+
+print(pn)
+```
+
+
+## Core microbiota  
+
+```{r}
+
+ps1.bx <- subset_samples(ps1a, SampleType == "Biopsy")
+
+ps1.bx.rel <- microbiome::transform(ps1.bx, "compositional")
+#your original pseq/relative abundance file
+#if
+colnames(tax_table(ps1.bx.rel))
+#last column has SVs/OTU ids then you can skip the following five steps and go to aggregate_taxa step.
+
+taxic <- as.data.frame(ps1.bx.rel@tax_table)
+taxic$OTU <- row.names(taxic)
+#convert it into a matrix.
+taxmat <- as.matrix(taxic)
+
+#convert into phyloseq compaitble file.
+new.tax <- tax_table(taxmat)
+
+#incroporate into phyloseq Object
+tax_table(ps1.bx.rel) <- new.tax
+
+#the presence of NA is an issue.
+
+tax_table(ps1.bx.rel)[,"Genus"][is.na(tax_table(ps1.bx.rel)[,"Genus"])] <- paste0(tolower(substring("Genus", 1, 1)), "__")
+
+#at family level
+ps1.bx.gen <- aggregate_taxa(ps1.bx.rel, "Genus")
+
+#Set different detection levels and prevalence
+prevalences <- seq(.5, 1, .5) #0.5 = 95% prevalence
+detections <- 10^seq(log10(1e-3), log10(.2), length = 10)
+#(1e-3) = 0.001% abundance; change "-3" to -2 to increase to 0.01%
+
+p <- plot_core(ps1.bx.gen, plot.type = "heatmap", colours = rev(brewer.pal(5, "Spectral")),
+min.prevalence = 0.9, prevalences = prevalences, detections = detections) +
+xlab("Detection Threshold (Relative Abundance (%))")
+print(p)
+
+```
+
+
+## Heatmap  
+
+We already have data in relative abundance, hence transformation will not be included. Plot top 20 OTUs.  
+```{r, fig.width=8, fig.height= 6}
+
+heat.sample <- microbiome_heatmap(ps1a, subset_otu = 20,
+    VariableA = "SampleType",
+    heatcolors = NA,
+    transformation = "compositional")
+
+
+```
+
+#References
+
+1) [Phylogenetic Diversity](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2674678/)     
+
+2) [UniFrac](http://aem.asm.org/content/71/12/8228.full)     
+
+3) [General Diversity](http://www2.ib.unicamp.br/profs/thomas/NE002_2011/maio10/Magurran%202004%20c2-4.pdf)     
+
+4) [To rarify or not to rarefy](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003531)   
+
+5) [Microbiome Helper](hhttp://msystems.asm.org/content/2/1/e00127-16)   
+
+6) [Ordinations](http://parfreylab.botany.ubc.ca/pca-pcoa-and-nmds/)  
+
+7) [Phyloseq paper](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0061217)    
+
+8) [Phyloseq workflow](https://f1000research.com/articles/5-1492/v1)  
+
+9) [R for Amplicon-Sequencing-Based Microbial-Ecology](https://rdrr.io/cran/RAM/)    
+
+10) [Rhea](https://github.com/Lagkouvardos/Rhea)  
+
+
+```{r}
+
+sessionInfo()
+
+```
+
+
+
+Kindly cite this work as follows: "Leo Lahti, Sudarshan Shetty et al. (2017). Tools for microbiome analysis in R. Version 1.1.2. URL: http://microbiome.github.com/microbiome. Check also the relevant references listed in the manual page of each function.
+
+The package utilizes tools from a number of other R extensions, including dplyr (Wickham, Francois, Henry, et al., 2017), ggplot2 (Wickham, 2009), phyloseq (McMurdie and Holmes, 2013), tidyr (Wickham, 2017), vegan (Oksanen, Blanchet, Friendly, et al., 2017).
+
+This website theme was created by modifiying the rmdformats readthedown format.
