@@ -12,7 +12,10 @@ output:
     highlight: haddock
 ---
 
-This tutorial gets You started with basic R tools for microbial ecology using a toy data. In particular, to provide an introduction to 
+This tutorial gets you started with basic R tools for microbial ecology using an example data. In particular the aim is to provide an introduction to basic data handling, analysis and visulisation of marker gene amplicon sequencing data.  
+
+This is a supporting website for the main project:  
+Tools for microbiome analysis in R. **Microbiome package version 1.1.2.** URL: [http://microbiome.github.com/microbiome](http://microbiome.github.com/microbiome). 
 
 ## Installation  
 
@@ -29,9 +32,9 @@ For more information you can have a look at [Phyloseq](http://joey711.github.io/
 
 Important Note 1:  
 Wisdom1 - There is no substitute for careful reading, so read the tutorial first and then start playing with it.  
-Wisdom2 - never skip a step or piece of text, you might need a file that was generated previously.  Take your time and don't rush.
+Wisdom2 - Never skip a step or piece of text, you might need a file that was generated previously.  Take your time and don't rush.
 
-Kindly cite all the packages tools that you have used in your analysis.
+Kindly cite all the packages/tools that you have used in your analysis.  
 
 ## Load the libraries  
 
@@ -44,7 +47,7 @@ library(reshape2)
 library(RColorBrewer)
 library(microbiomeutilities)
 library(viridis)
-
+library(tibble)
 ```
 
 
@@ -70,7 +73,7 @@ any(taxa_sums(ps1) == 0)
 
 ```
 
-The answer is TRUE, mean yes and we need to remove them.  
+The answer is TRUE. Yes, there are OTUs not found in any samples. This is usually the case when data is subset to remove some samples. OTUs unique to those sample are not removed along with the samples. Therefore, it is important to check this everytime the phyloseq object is filtered for samples using `subset_samples` function.      
 
 ```{r}
 
@@ -80,7 +83,24 @@ ps1a <- prune_taxa(taxa_sums(ps1) > 0, ps1)
 any(taxa_sums(ps1a) == 0)
 ```
 
-"FALSE" means we have removed them.  
+After the `prune_taxa` function is run to remove OTus with zero occurances, the answer is "FALSE". 
+
+Check how many OTUs are kept.  
+
+```{r}
+
+# subtract the number of OTUs in original (ps1) with number of OTUs in new phyloseq (ps1a) object.
+# no. of OTUs in original 
+ntaxa(ps1)
+
+# no. of OTUs in new 
+ntaxa(ps1a)
+
+
+ntaxa(ps1) - ntaxa(ps1a)
+```
+
+8116 OTUs have been removed.  
 
 ```{r}
 
@@ -90,12 +110,12 @@ rank_names(ps1a)
 
 ```
 
-Check how many reads/samples
+Check distribution of how many reads/samples?
 ```{r}
 
 SeqDepth = colSums(otu_table(ps1a))
 sample_data(ps1a)$SeqDepth = SeqDepth
-qplot(log10(SeqDepth), geom = "histogram")
+qplot(log10(SeqDepth), geom = "histogram") + theme_bw()
 
 # We use the main variable here of interest SampleType
 
@@ -112,7 +132,18 @@ max(SeqDepth)
 
 ```
 
-It is clear that there is big difference in the sequencing depth. Keep this in mind for downstream analysis.  
+Also just plot number of reads per sample.  
+
+
+```{r, fig.width=8, fig.height=4}
+
+head(meta(ps1a))
+ggbarplot(meta(ps1a), "SampleID", "SeqDepth", fill = "SampleType") + rotate_x_text()
+
+```
+
+
+It is clear that there is a difference in the sequencing depth. Keep this in mind for downstream analysis.  
 If you have installed microbiome package from github then you can simple run the following command.  
 
 ```{r}
@@ -130,10 +161,14 @@ We have data which is not relative abundance, only counts in our case. sparsity 
 
 ps1b <- prune_taxa(taxa_sums(ps1a) > 1, ps1a)
 
+ps1b
+
 summarize_phyloseq(ps1b)
+
 
 ```
 
+After removing singletons, there are 8304 OTUs.  
 
 ```{r}
 
@@ -148,7 +183,7 @@ We can also look at how prevalent are OTUs.
 
 ```{r, fig.width=12, fig.height=10}
 
-prev.otu <- plot_taxa_prevalence(ps1a, "Phylum")
+prev.otu <- plot_taxa_prevalence(ps1b, "Phylum")
 
 print(prev.otu)
 
@@ -160,17 +195,19 @@ We will remove OTUs unclassified at phylum level
 
 ```{r}
 
-ps2 <- subset_taxa(ps1a, Phylum != "p__")
+ps2 <- subset_taxa(ps1b, Phylum != "p__")
 
-unique(tax_table(ps2)[,"Phylum"])
+# unique(tax_table(ps2)[,"Phylum"])
 
 ps2a <- subset_taxa(ps2,Class!="Chloroplast")
 
 ps3 <- subset_taxa(ps2a,Order!="Mitochondria")
 
+ps3
 ```
 
-## Diversity
+## Diversity  
+
 
 Of specific interest in microbial ecology is the diversity of microbial communities.
 
@@ -255,10 +292,11 @@ We will remove some potential suporious OTUs from data.
 ```{r}
 nsamples(ps3)
 
-# we will keep only those OTUs that are detected alteast 10 times in 5 out of total 14 samples
-ps4 <- core(ps3, detection = 10, prevalence = 5/nsamples(ps3))
+# we will keep only those OTUs that are detected alteast 5 times in 5 out of total 14 samples
+ps4 <- core(ps3, detection = 5, prevalence = 5/nsamples(ps3))
 hist(log10(taxa_sums(ps4)))
 
+ps4
 ```
 
 Since, there is no phylogenetic tree for this data set, Bray-Curtis distance will be calculated.  
@@ -267,23 +305,55 @@ Since, there is no phylogenetic tree for this data set, Bray-Curtis distance wil
 
 ps4.rel <- microbiome::transform(ps4, "compositional")
 
-bx.ord_nmds_bray <- ordinate(ps4.rel, "NMDS", "bray")
-vegan::stressplot(bx.ord_nmds_bray)
+bx.ord_pcoa_bray <- ordinate(ps4.rel, "PCoA", "bray")
+
+#Scree plot
+plot_scree(bx.ord_pcoa_bray) + theme_bw()
+
 
 ```
 
+Axis 1 and 2 are of interest.   
 
 ```{r}
 
-beta.ps1 <- plot_ordination(ps4.rel, bx.ord_nmds_bray, color="Subject", label = "Subject") + geom_point(aes(shape = SampleType), size= 4) + theme(plot.title = element_text(hjust = 0, size = 12))
-beta.ps1 <- beta.ps1 + theme_bw(base_size = 14) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+beta.ps1 <- plot_ordination(ps4.rel, 
+                            bx.ord_pcoa_bray, 
+                            color="Subject", 
+                            label = "Subject") + 
+  geom_point(aes(shape = SampleType), size= 4) + 
+  theme(plot.title = element_text(hjust = 0, size = 12))
+
+beta.ps1 <- beta.ps1 + theme_bw(base_size = 14) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 # Now we can join the biopsy and stool from same subject
-beta.ps1 <- beta.ps1 + geom_line() + scale_color_brewer(palette = "Dark2")
-beta.ps1
+beta.ps2 <- beta.ps1 + geom_line() + scale_color_brewer(palette = "Dark2")
+beta.ps2
 
 
 ```
+
+This ordination plot shows that axis 1 explains 36% of the variation between biopsy and stool.  
+
+For asthetics, an ellipse can be added.  
+
+```{r}
+
+beta.ps3 <- plot_ordination(ps4.rel, 
+                            bx.ord_pcoa_bray, 
+                            color="SampleType", 
+                            label = "Subject") + 
+  geom_point(size= 4) + 
+  theme(plot.title = element_text(hjust = 0, size = 12))
+
+beta.ps3 <- beta.ps3 + theme_bw(base_size = 14) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+beta.ps3 + scale_color_brewer(palette = "Dark2") + stat_ellipse()
+
+```
+
 
 **PERMANOVA**
 
@@ -300,15 +370,7 @@ adonis.test
 
 ```
 
-
-```{r}
-
-set.seed(959)
-# Adonis test
-#library(vegan)
-adonis.test1 <- adonis(bray_ps.bxn ~ Subject, data = metadf.bx)
-adonis.test1
-```
+Adonis test shows that the difference is significant and 35% variation is explained by SampleType.  
 
 **Checking the homogeneity condition**  
 
@@ -323,7 +385,7 @@ anova(betadisper(dist, metadf.bx$SampleType))
 
 ```
 
-A values of less than 0.05 for betadisper suggests that the sampletype has a significant differfences in overall microbiota composition.  
+betadisper test supports that the sampletype explains major differfences in overall microbiota composition.  
 
 
 ## Quantifying group divergence / spread
@@ -350,14 +412,14 @@ dif.g <- reshape2::melt(div_df)
 ggpubr::ggboxplot(dif.g, "variable", "value", 
                   ylab = "Divergence", 
                   xlab = "Sample Type", 
-                  add = "dotplot",
+                  add = "jitter",
                   fill = "variable",
                   palette = c("#a6cee3", "#b2df8a"))
 
 
 ```
 
-
+The biopsies tend to have smaller values, indicating that the samples are more similar to the group mean, and the biopsy is less heterogeneous (has smaller spread / is more homogeneous).  
 
 ## Composition 
 
@@ -394,7 +456,7 @@ pseq.ph <- aggregate_taxa(ps1a.com, "Phylum", top = 11)
 p.phy <- plot_composition(pseq.ph, sample.sort = NULL, otu.sort = NULL,
   x.label = "SampleType", plot.type = "barplot", verbose = FALSE)
 
-print(p.phy + scale_fill_brewer(palette = "Paired"))
+print(p.phy + scale_fill_brewer(palette = "Paired") + theme_bw())
 
 ```
 
@@ -409,10 +471,13 @@ guide_italics <- guides(fill = guide_legend(label.theme = element_text(size = 15
 pseq.ph.rel <- microbiome::transform(pseq.ph, "compositional")
 
 
-plot.comp.rel <- plot_composition(pseq.ph.rel, x.label = "SampleType") + theme(legend.position = "bottom") + theme_bw() + 
-    theme(axis.text.x = element_text(angle = 90)) + 
-  ggtitle("Relative abundance") + guide_italics + theme(legend.title = element_text(size=18))
-plot.comp.rel + scale_fill_brewer(palette = "Paired")
+plot.comp.rel <- plot_composition(pseq.ph.rel, x.label = "SampleType") + 
+  theme(legend.position = "bottom") + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90)) + 
+  ggtitle("Relative abundance") + guide_italics + 
+  theme(legend.title = element_text(size=18))
+
+plot.comp.rel + scale_fill_brewer( "Phylum",palette = "Paired")
 
 ```
 
@@ -431,7 +496,7 @@ print(pn)
 
 ## Core microbiota  
 
-```{r}
+```{r, fig.width=6, fig.height=7}
 
 ps1.bx <- subset_samples(ps1a, SampleType == "Biopsy")
 
@@ -464,9 +529,12 @@ prevalences <- seq(.5, 1, .5) #0.5 = 95% prevalence
 detections <- 10^seq(log10(1e-3), log10(.2), length = 10)
 #(1e-3) = 0.001% abundance; change "-3" to -2 to increase to 0.01%
 
-p <- plot_core(ps1.bx.gen, plot.type = "heatmap", colours = rev(brewer.pal(5, "Spectral")),
-min.prevalence = 0.9, prevalences = prevalences, detections = detections) +
-xlab("Detection Threshold (Relative Abundance (%))")
+p <- plot_core(ps1.bx.gen, plot.type = "heatmap", 
+               colours = rev(brewer.pal(10, "Spectral")),
+               min.prevalence = 0.9, 
+               prevalences = prevalences, 
+               detections = detections) +
+  xlab("Detection Threshold (Relative Abundance (%))")
 print(p)
 
 ```
@@ -474,13 +542,15 @@ print(p)
 
 ## Heatmap  
 
-We already have data in relative abundance, hence transformation will not be included. Plot top 20 OTUs.  
-```{r, fig.width=8, fig.height= 6}
+We have data in counts, hence transformation to log10(x+1) will be done for better plotting. Plot top 20 OTUs.  
+```{r, fig.width=12, fig.height= 6, warning=FALSE, message=FALSE}
 
-heat.sample <- microbiome_heatmap(ps1a, subset_otu = 20,
+ps1.c <- format_to_besthit(ps1a)
+
+heat.sample <- plot_taxa_heatmap(ps1a, subset.top = 20,
     VariableA = "SampleType",
-    heatcolors = NA,
-    transformation = "compositional")
+    heatcolors = rev(brewer.pal(100, "Blues")),
+    transformation = "log10")
 
 
 ```

@@ -10,7 +10,7 @@
 
 <meta name="author" content="Sudarshan A. Shetty" />
 
-<meta name="date" content="2017-12-27" />
+<meta name="date" content="2017-12-30" />
 
 <title>Microbiota anlaysis tutorial example</title>
 
@@ -139,7 +139,9 @@ $(document).ready(function () {
 </div>
 
 <div id="main">
-<p>This tutorial gets You started with basic R tools for microbial ecology using a toy data. In particular, to provide an introduction to</p>
+<p>This tutorial gets you started with basic R tools for microbial ecology using an example data. In particular the aim is to provide an introduction to basic data handling, analysis and visulisation of marker gene amplicon sequencing data.</p>
+<p>This is a supporting website for the main project:<br />
+Tools for microbiome analysis in R. <strong>Microbiome package version 1.1.2.</strong> URL: <a href="http://microbiome.github.com/microbiome" class="uri">http://microbiome.github.com/microbiome</a>.</p>
 <div id="installation" class="section level2">
 <h2>Installation</h2>
 <p>Launch R/RStudio and install the microbiome R package see (<a href="http://microbiome.github.io/microbiome/Installation.html">installation instructions</a>).</p>
@@ -152,8 +154,8 @@ $(document).ready(function () {
 For more information you can have a look at <a href="http://joey711.github.io/phyloseq/">Phyloseq</a> and <a href="http://joey711.github.io/phyloseq-demo/phyloseq-demo.html">here</a>.</p>
 <p>Important Note 1:<br />
 Wisdom1 - There is no substitute for careful reading, so read the tutorial first and then start playing with it.<br />
-Wisdom2 - never skip a step or piece of text, you might need a file that was generated previously. Take your time and don’t rush.</p>
-<p>Kindly cite all the packages tools that you have used in your analysis.</p>
+Wisdom2 - Never skip a step or piece of text, you might need a file that was generated previously. Take your time and don’t rush.</p>
+<p>Kindly cite all the packages/tools that you have used in your analysis.</p>
 </div>
 <div id="load-the-libraries" class="section level2">
 <h2>Load the libraries</h2>
@@ -163,7 +165,8 @@ Wisdom2 - never skip a step or piece of text, you might need a file that was gen
 <span class="kw">library</span>(reshape2)
 <span class="kw">library</span>(RColorBrewer)
 <span class="kw">library</span>(microbiomeutilities)
-<span class="kw">library</span>(viridis)</code></pre></div>
+<span class="kw">library</span>(viridis)
+<span class="kw">library</span>(tibble)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">data</span>(<span class="st">&quot;biogeogut&quot;</span>)
 <span class="co">#save(biogeogut, file = &quot;./inputdata/biogeogut.rda&quot;)</span>
 <span class="co">#load(&quot;./inputdata/biogeogut.rda&quot;)</span>
@@ -181,29 +184,40 @@ ps1 &lt;-<span class="st"> </span>biogeogut</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># check if any OTUs are not present in any samples</span>
 <span class="kw">any</span>(<span class="kw">taxa_sums</span>(ps1) ==<span class="st"> </span><span class="dv">0</span>)</code></pre></div>
 <pre><code>## [1] TRUE</code></pre>
-<p>The answer is TRUE, mean yes and we need to remove them.</p>
+<p>The answer is TRUE. Yes, there are OTUs not found in any samples. This is usually the case when data is subset to remove some samples. OTUs unique to those sample are not removed along with the samples. Therefore, it is important to check this everytime the phyloseq object is filtered for samples using <code>subset_samples</code> function.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps1a &lt;-<span class="st"> </span><span class="kw">prune_taxa</span>(<span class="kw">taxa_sums</span>(ps1) &gt;<span class="st"> </span><span class="dv">0</span>, ps1)
 
 <span class="co"># check again if any OTUs are not present in any samples</span>
 <span class="kw">any</span>(<span class="kw">taxa_sums</span>(ps1a) ==<span class="st"> </span><span class="dv">0</span>)</code></pre></div>
 <pre><code>## [1] FALSE</code></pre>
-<p>“FALSE” means we have removed them.</p>
+<p>After the <code>prune_taxa</code> function is run to remove OTus with zero occurances, the answer is “FALSE”.</p>
+<p>Check how many OTUs are kept.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># subtract the number of OTUs in original (ps1) with number of OTUs in new phyloseq (ps1a) object.</span>
+<span class="co"># no. of OTUs in original </span>
+<span class="kw">ntaxa</span>(ps1)</code></pre></div>
+<pre><code>## [1] 19063</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># no. of OTUs in new </span>
+<span class="kw">ntaxa</span>(ps1a)</code></pre></div>
+<pre><code>## [1] 10947</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ntaxa</span>(ps1) -<span class="st"> </span><span class="kw">ntaxa</span>(ps1a)</code></pre></div>
+<pre><code>## [1] 8116</code></pre>
+<p>8116 OTUs have been removed.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Check the taxonomy levels</span>
 
 <span class="kw">rank_names</span>(ps1a)</code></pre></div>
 <pre><code>## [1] &quot;Domain&quot;  &quot;Phylum&quot;  &quot;Class&quot;   &quot;Order&quot;   &quot;Family&quot;  &quot;Genus&quot;   &quot;Species&quot;</code></pre>
-<p>Check how many reads/samples</p>
+<p>Check distribution of how many reads/samples?</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">SeqDepth =<span class="st"> </span><span class="kw">colSums</span>(<span class="kw">otu_table</span>(ps1a))
 <span class="kw">sample_data</span>(ps1a)$SeqDepth =<span class="st"> </span>SeqDepth
-<span class="kw">qplot</span>(<span class="kw">log10</span>(SeqDepth), <span class="dt">geom =</span> <span class="st">&quot;histogram&quot;</span>)</code></pre></div>
+<span class="kw">qplot</span>(<span class="kw">log10</span>(SeqDepth), <span class="dt">geom =</span> <span class="st">&quot;histogram&quot;</span>) +<span class="st"> </span><span class="kw">theme_bw</span>()</code></pre></div>
 <pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-5-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-6-1.png" width="768" /></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># We use the main variable here of interest SampleType</span>
 
 <span class="kw">ggplot</span>(<span class="kw">meta</span>(ps1a)) +
 <span class="st">    </span><span class="kw">geom_histogram</span>(<span class="kw">aes</span>(<span class="dt">x =</span> <span class="kw">log10</span>(SeqDepth)), <span class="dt">alpha=</span> <span class="fl">0.6</span>) +<span class="st"> </span><span class="kw">facet_wrap</span>(~SampleType) +<span class="st"> </span><span class="kw">theme_bw</span>()</code></pre></div>
 <pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-5-2.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-6-2.png" width="768" /></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">sort</span>(SeqDepth)</code></pre></div>
 <pre><code>##  cb126  cb169  cb110  cs164  cs165  cs114  cs110  cs169  cs116  cb114 
 ## 175365 185945 194901 197472 206850 211300 217896 227476 253549 265298 
@@ -215,7 +229,18 @@ ps1 &lt;-<span class="st"> </span>biogeogut</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># max number of reads</span>
 <span class="kw">max</span>(SeqDepth)</code></pre></div>
 <pre><code>## [1] 452182</code></pre>
-<p>It is clear that there is big difference in the sequencing depth. Keep this in mind for downstream analysis.<br />
+<p>Also just plot number of reads per sample.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">head</span>(<span class="kw">meta</span>(ps1a))</code></pre></div>
+<pre><code>##       SampleID     Subject Age InputFileName Sex SampleType SeqDepth
+## cb110    cb110 Subject_110   C   cb110.fasta   1     Biopsy   194901
+## cb126    cb126 Subject_126   C   cb126.fasta   2     Biopsy   175365
+## cb114    cb114 Subject_114   A   cb114.fasta   1     Biopsy   265298
+## cb116    cb116 Subject_116   D   cb116.fasta   1     Biopsy   281864
+## cb165    cb165 Subject_165   A   cb165.fasta   1     Biopsy   335089
+## cb169    cb169 Subject_169   C   cb169.fasta   2     Biopsy   185945</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggbarplot</span>(<span class="kw">meta</span>(ps1a), <span class="st">&quot;SampleID&quot;</span>, <span class="st">&quot;SeqDepth&quot;</span>, <span class="dt">fill =</span> <span class="st">&quot;SampleType&quot;</span>) +<span class="st"> </span><span class="kw">rotate_x_text</span>()</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-7-1.png" width="768" /></p>
+<p>It is clear that there is a difference in the sequencing depth. Keep this in mind for downstream analysis.<br />
 If you have installed microbiome package from github then you can simple run the following command.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summarize_phyloseq</span>(ps1a)</code></pre></div>
 <pre><code>## Compositional = NO
@@ -241,7 +266,12 @@ If you have installed microbiome package from github then you can simple run the
 
 ps1b &lt;-<span class="st"> </span><span class="kw">prune_taxa</span>(<span class="kw">taxa_sums</span>(ps1a) &gt;<span class="st"> </span><span class="dv">1</span>, ps1a)
 
-<span class="kw">summarize_phyloseq</span>(ps1b)</code></pre></div>
+ps1b</code></pre></div>
+<pre><code>## phyloseq-class experiment-level object
+## otu_table()   OTU Table:         [ 8304 taxa and 14 samples ]
+## sample_data() Sample Data:       [ 14 samples by 7 sample variables ]
+## tax_table()   Taxonomy Table:    [ 8304 taxa by 7 taxonomic ranks ]</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summarize_phyloseq</span>(ps1b)</code></pre></div>
 <pre><code>## Compositional = NO
 ## 1] Min. number of reads = 175066 
 ## 2] Max. number of reads = 451671 
@@ -260,61 +290,31 @@ ps1b &lt;-<span class="st"> </span><span class="kw">prune_taxa</span>(<span clas
 ## Sex 
 ## SampleType 
 ## SeqDepth</code></pre>
+<p>After removing singletons, there are 8304 OTUs.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># check for distribution of OTUs </span>
 
 <span class="kw">hist</span>(<span class="kw">log10</span>(<span class="kw">taxa_sums</span>(ps1b)))</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-8-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-10-1.png" width="768" /></p>
 <p>The data is left tailed. Common for microbiome count data. We can also look at how prevalent are OTUs.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">prev.otu &lt;-<span class="st"> </span><span class="kw">plot_taxa_prevalence</span>(ps1a, <span class="st">&quot;Phylum&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">prev.otu &lt;-<span class="st"> </span><span class="kw">plot_taxa_prevalence</span>(ps1b, <span class="st">&quot;Phylum&quot;</span>)
 
 <span class="kw">print</span>(prev.otu)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-9-1.png" width="1152" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-11-1.png" width="1152" /></p>
 <p>We can see that there are OTUs that are very low abundance and present in only few samples.<br />
 We will remove OTUs unclassified at phylum level</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps2 &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps1a, Phylum !=<span class="st"> &quot;p__&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps2 &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps1b, Phylum !=<span class="st"> &quot;p__&quot;</span>)
 
-<span class="kw">unique</span>(<span class="kw">tax_table</span>(ps2)[,<span class="st">&quot;Phylum&quot;</span>])</code></pre></div>
-<pre><code>## Taxonomy Table:     [36 taxa by 1 taxonomic ranks]:
-##         Phylum               
-## 1050608 &quot;p__Actinobacteria&quot;  
-## 370251  &quot;p__Proteobacteria&quot;  
-## 188753  &quot;p__Firmicutes&quot;      
-## 221964  &quot;p__Acidobacteria&quot;   
-## 154353  &quot;p__Crenarchaeota&quot;   
-## 134616  &quot;p__Chloroflexi&quot;     
-## 432284  &quot;p__Cyanobacteria&quot;   
-## 4305923 &quot;p__Tenericutes&quot;     
-## 575041  &quot;p__Bacteroidetes&quot;   
-## 193829  &quot;p__Verrucomicrobia&quot; 
-## 547795  &quot;p__[Thermi]&quot;        
-## 444857  &quot;p__Fusobacteria&quot;    
-## 751720  &quot;p__TM7&quot;             
-## 399903  &quot;p__Spirochaetes&quot;    
-## 500138  &quot;p__WPS-2&quot;           
-## 2358280 &quot;p__Nitrospirae&quot;     
-## 4311647 &quot;p__Lentisphaerae&quot;   
-## 4409536 &quot;p__Euryarchaeota&quot;   
-## 4370348 &quot;p__Planctomycetes&quot;  
-## 219830  &quot;p__AD3&quot;             
-## 547148  &quot;p__Gemmatimonadetes&quot;
-## 4213913 &quot;p__SR1&quot;             
-## 23652   &quot;p__Elusimicrobia&quot;   
-## 1871    &quot;p__Deferribacteres&quot; 
-## 2365945 &quot;p__Synergistetes&quot;   
-## 4443285 &quot;p__SBR1093&quot;         
-## 539567  &quot;p__Thermotogae&quot;     
-## 4413729 &quot;p__Armatimonadetes&quot; 
-## 540736  &quot;p__NKB19&quot;           
-## 812105  &quot;p__WS3&quot;             
-## 211527  &quot;p__OP11&quot;            
-## 816915  &quot;p__GAL15&quot;           
-## 205209  &quot;p__OD1&quot;             
-## 866043  &quot;p__FBP&quot;             
-## 3110493 &quot;p__BRC1&quot;            
-## 4468759 &quot;p__OP1&quot;</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps2a &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps2,Class!=<span class="st">&quot;Chloroplast&quot;</span>)
+<span class="co"># unique(tax_table(ps2)[,&quot;Phylum&quot;])</span>
 
-ps3 &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps2a,Order!=<span class="st">&quot;Mitochondria&quot;</span>)</code></pre></div>
+ps2a &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps2,Class!=<span class="st">&quot;Chloroplast&quot;</span>)
+
+ps3 &lt;-<span class="st"> </span><span class="kw">subset_taxa</span>(ps2a,Order!=<span class="st">&quot;Mitochondria&quot;</span>)
+
+ps3</code></pre></div>
+<pre><code>## phyloseq-class experiment-level object
+## otu_table()   OTU Table:         [ 8298 taxa and 14 samples ]
+## sample_data() Sample Data:       [ 14 samples by 7 sample variables ]
+## tax_table()   Taxonomy Table:    [ 8298 taxa by 7 taxonomic ranks ]</code></pre>
 </div>
 <div id="diversity" class="section level2">
 <h2>Diversity</h2>
@@ -397,7 +397,7 @@ ps.even &lt;-<span class="st"> </span><span class="kw">evenness</span>(ps1a, <sp
 ps1a.meta$simpson &lt;-<span class="st"> </span>ps.even$simpson </code></pre></div>
 <p>Before doing any statistical test check for the distribution of the diversity.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">hist</span>(ps1a.meta$simpson)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-13-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-15-1.png" width="768" /></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># This data look ok</span>
 
 <span class="co"># test is it is</span>
@@ -408,7 +408,7 @@ ps1a.meta$simpson &lt;-<span class="st"> </span>ps.even$simpson </code></pre></d
 ## data:  ps1a.meta$simpson
 ## W = 0.92008, p-value = 0.2205</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">qqnorm</span>(ps1a.meta$simpson)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-13-2.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-15-2.png" width="768" /></p>
 <p>If you have more than two variable with a category then do the following. If only two variable like in this case Biopsy and faeces skip this chunk.<br />
 See also <a href="http://microbiome.github.io/microbiome/PlotDiversity.html">main tutorial</a></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># create a list of pairwise comaprisons</span>
@@ -424,11 +424,11 @@ smtype.pairs &lt;-<span class="st"> </span><span class="kw">combn</span>(<span c
  <span class="dt">legend =</span> <span class="st">&quot;right&quot;</span>) 
 
 <span class="kw">print</span>(p1)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-15-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-17-1.png" width="768" /></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">p1 &lt;-<span class="st"> </span>p1 +<span class="st"> </span><span class="kw">stat_compare_means</span>(<span class="dt">method =</span> <span class="st">&quot;t.test&quot;</span>)
 
 <span class="kw">print</span>(p1)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-15-2.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-17-2.png" width="768" /></p>
 <p>For more information and useful tips and suggestions check the <a href="http://www.sthda.com/english/rpkgs/ggpubr/">Statistical tools for high-throughput data analysis</a>.</p>
 <p>For more option on diversity indices <a href="http://microbiome.github.io/microbiome/Diversity.html">Diversity</a></p>
 </div>
@@ -438,60 +438,52 @@ smtype.pairs &lt;-<span class="st"> </span><span class="kw">combn</span>(<span c
 <p>We will remove some potential suporious OTUs from data.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">nsamples</span>(ps3)</code></pre></div>
 <pre><code>## [1] 14</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># we will keep only those OTUs that are detected alteast 10 times in 5 out of total 14 samples</span>
-ps4 &lt;-<span class="st"> </span><span class="kw">core</span>(ps3, <span class="dt">detection =</span> <span class="dv">10</span>, <span class="dt">prevalence =</span> <span class="dv">5</span>/<span class="kw">nsamples</span>(ps3))
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># we will keep only those OTUs that are detected alteast 5 times in 5 out of total 14 samples</span>
+ps4 &lt;-<span class="st"> </span><span class="kw">core</span>(ps3, <span class="dt">detection =</span> <span class="dv">5</span>, <span class="dt">prevalence =</span> <span class="dv">5</span>/<span class="kw">nsamples</span>(ps3))
 <span class="kw">hist</span>(<span class="kw">log10</span>(<span class="kw">taxa_sums</span>(ps4)))</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-16-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-18-1.png" width="768" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps4</code></pre></div>
+<pre><code>## phyloseq-class experiment-level object
+## otu_table()   OTU Table:         [ 897 taxa and 14 samples ]
+## sample_data() Sample Data:       [ 14 samples by 7 sample variables ]
+## tax_table()   Taxonomy Table:    [ 897 taxa by 7 taxonomic ranks ]</code></pre>
 <p>Since, there is no phylogenetic tree for this data set, Bray-Curtis distance will be calculated.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps4.rel &lt;-<span class="st"> </span>microbiome::<span class="kw">transform</span>(ps4, <span class="st">&quot;compositional&quot;</span>)
 
-bx.ord_nmds_bray &lt;-<span class="st"> </span><span class="kw">ordinate</span>(ps4.rel, <span class="st">&quot;NMDS&quot;</span>, <span class="st">&quot;bray&quot;</span>)</code></pre></div>
-<pre><code>## Run 0 stress 0.07232831 
-## Run 1 stress 0.1036504 
-## Run 2 stress 0.1227815 
-## Run 3 stress 0.0676272 
-## ... New best solution
-## ... Procrustes: rmse 0.06376981  max resid 0.1816933 
-## Run 4 stress 0.1227834 
-## Run 5 stress 0.0676281 
-## ... Procrustes: rmse 0.0009677897  max resid 0.002984633 
-## ... Similar to previous best
-## Run 6 stress 0.06762748 
-## ... Procrustes: rmse 0.000172833  max resid 0.0005310964 
-## ... Similar to previous best
-## Run 7 stress 0.1194773 
-## Run 8 stress 0.1036509 
-## Run 9 stress 0.2824547 
-## Run 10 stress 0.07232663 
-## Run 11 stress 0.3076329 
-## Run 12 stress 0.0676279 
-## ... Procrustes: rmse 0.0008561756  max resid 0.002658505 
-## ... Similar to previous best
-## Run 13 stress 0.1007461 
-## Run 14 stress 0.06762765 
-## ... Procrustes: rmse 0.0002401353  max resid 0.0007460009 
-## ... Similar to previous best
-## Run 15 stress 0.07232655 
-## Run 16 stress 0.1194778 
-## Run 17 stress 0.1007459 
-## Run 18 stress 0.1047296 
-## Run 19 stress 0.06762748 
-## ... Procrustes: rmse 0.0006941607  max resid 0.002141259 
-## ... Similar to previous best
-## Run 20 stress 0.06762847 
-## ... Procrustes: rmse 0.0005282532  max resid 0.001638492 
-## ... Similar to previous best
-## *** Solution reached</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">vegan::<span class="kw">stressplot</span>(bx.ord_nmds_bray)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-17-1.png" width="768" /></p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps1 &lt;-<span class="st"> </span><span class="kw">plot_ordination</span>(ps4.rel, bx.ord_nmds_bray, <span class="dt">color=</span><span class="st">&quot;Subject&quot;</span>, <span class="dt">label =</span> <span class="st">&quot;Subject&quot;</span>) +<span class="st"> </span><span class="kw">geom_point</span>(<span class="kw">aes</span>(<span class="dt">shape =</span> SampleType), <span class="dt">size=</span> <span class="dv">4</span>) +<span class="st"> </span><span class="kw">theme</span>(<span class="dt">plot.title =</span> <span class="kw">element_text</span>(<span class="dt">hjust =</span> <span class="dv">0</span>, <span class="dt">size =</span> <span class="dv">12</span>))</code></pre></div>
+bx.ord_pcoa_bray &lt;-<span class="st"> </span><span class="kw">ordinate</span>(ps4.rel, <span class="st">&quot;PCoA&quot;</span>, <span class="st">&quot;bray&quot;</span>)
+
+<span class="co">#Scree plot</span>
+<span class="kw">plot_scree</span>(bx.ord_pcoa_bray) +<span class="st"> </span><span class="kw">theme_bw</span>()</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-19-1.png" width="768" /></p>
+<p>Axis 1 and 2 are of interest.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps1 &lt;-<span class="st"> </span><span class="kw">plot_ordination</span>(ps4.rel, 
+                            bx.ord_pcoa_bray, 
+                            <span class="dt">color=</span><span class="st">&quot;Subject&quot;</span>, 
+                            <span class="dt">label =</span> <span class="st">&quot;Subject&quot;</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="kw">aes</span>(<span class="dt">shape =</span> SampleType), <span class="dt">size=</span> <span class="dv">4</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">plot.title =</span> <span class="kw">element_text</span>(<span class="dt">hjust =</span> <span class="dv">0</span>, <span class="dt">size =</span> <span class="dv">12</span>))</code></pre></div>
 <pre><code>## Warning: Ignoring unknown aesthetics: na.rm</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps1 &lt;-<span class="st"> </span>beta.ps1 +<span class="st"> </span><span class="kw">theme_bw</span>(<span class="dt">base_size =</span> <span class="dv">14</span>) +<span class="st"> </span><span class="kw">theme</span>(<span class="dt">panel.grid.major =</span> <span class="kw">element_blank</span>(), <span class="dt">panel.grid.minor =</span> <span class="kw">element_blank</span>())
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps1 &lt;-<span class="st"> </span>beta.ps1 +<span class="st"> </span><span class="kw">theme_bw</span>(<span class="dt">base_size =</span> <span class="dv">14</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">panel.grid.major =</span> <span class="kw">element_blank</span>(), <span class="dt">panel.grid.minor =</span> <span class="kw">element_blank</span>())
 
 <span class="co"># Now we can join the biopsy and stool from same subject</span>
-beta.ps1 &lt;-<span class="st"> </span>beta.ps1 +<span class="st"> </span><span class="kw">geom_line</span>() +<span class="st"> </span><span class="kw">scale_color_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Dark2&quot;</span>)
-beta.ps1</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-18-1.png" width="768" /></p>
+beta.ps2 &lt;-<span class="st"> </span>beta.ps1 +<span class="st"> </span><span class="kw">geom_line</span>() +<span class="st"> </span><span class="kw">scale_color_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Dark2&quot;</span>)
+beta.ps2</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-20-1.png" width="768" /></p>
+<p>This ordination plot shows that axis 1 explains 36% of the variation between biopsy and stool.</p>
+<p>For asthetics, an ellipse can be added.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps3 &lt;-<span class="st"> </span><span class="kw">plot_ordination</span>(ps4.rel, 
+                            bx.ord_pcoa_bray, 
+                            <span class="dt">color=</span><span class="st">&quot;SampleType&quot;</span>, 
+                            <span class="dt">label =</span> <span class="st">&quot;Subject&quot;</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="dt">size=</span> <span class="dv">4</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">plot.title =</span> <span class="kw">element_text</span>(<span class="dt">hjust =</span> <span class="dv">0</span>, <span class="dt">size =</span> <span class="dv">12</span>))</code></pre></div>
+<pre><code>## Warning: Ignoring unknown aesthetics: na.rm</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">beta.ps3 &lt;-<span class="st"> </span>beta.ps3 +<span class="st"> </span><span class="kw">theme_bw</span>(<span class="dt">base_size =</span> <span class="dv">14</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">panel.grid.major =</span> <span class="kw">element_blank</span>(), <span class="dt">panel.grid.minor =</span> <span class="kw">element_blank</span>())
+
+beta.ps3 +<span class="st"> </span><span class="kw">scale_color_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Dark2&quot;</span>) +<span class="st"> </span><span class="kw">stat_ellipse</span>()</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-21-1.png" width="768" /></p>
 <p><strong>PERMANOVA</strong></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">metadf.bx &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="kw">sample_data</span>(ps4.rel))
 bray_ps.bxn &lt;-<span class="st"> </span>phyloseq::<span class="kw">distance</span>(<span class="dt">physeq =</span> ps4.rel, <span class="dt">method =</span> <span class="st">&quot;bray&quot;</span>)
@@ -515,29 +507,12 @@ adonis.test</code></pre></div>
 ## Terms added sequentially (first to last)
 ## 
 ##            Df SumsOfSqs MeanSqs F.Model      R2 Pr(&gt;F)   
-## SampleType  1    1.4875 1.48749  6.7596 0.36033  0.003 **
-## Residuals  12    2.6406 0.22005         0.63967          
-## Total      13    4.1281                 1.00000          
+## SampleType  1    1.4675 1.46753  6.5019 0.35142  0.003 **
+## Residuals  12    2.7085 0.22571         0.64858          
+## Total      13    4.1760                 1.00000          
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">959</span>)
-<span class="co"># Adonis test</span>
-<span class="co">#library(vegan)</span>
-adonis.test1 &lt;-<span class="st"> </span><span class="kw">adonis</span>(bray_ps.bxn ~<span class="st"> </span>Subject, <span class="dt">data =</span> metadf.bx)
-adonis.test1</code></pre></div>
-<pre><code>## 
-## Call:
-## adonis(formula = bray_ps.bxn ~ Subject, data = metadf.bx) 
-## 
-## Permutation: free
-## Number of permutations: 999
-## 
-## Terms added sequentially (first to last)
-## 
-##           Df SumsOfSqs MeanSqs F.Model     R2 Pr(&gt;F)
-## Subject    6    1.3379 0.22299 0.55942 0.3241  0.968
-## Residuals  7    2.7902 0.39860         0.6759       
-## Total     13    4.1281                 1.0000</code></pre>
+<p>Adonis test shows that the difference is significant and 35% variation is explained by SampleType.</p>
 <p><strong>Checking the homogeneity condition</strong></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Note the assumption of similar multivariate spread among the groups</span>
 <span class="co"># ie. analogous to variance homogeneity</span>
@@ -549,11 +524,11 @@ dist &lt;-<span class="st"> </span><span class="kw">vegdist</span>(<span class="
 ## 
 ## Response: Distances
 ##           Df  Sum Sq  Mean Sq F value  Pr(&gt;F)  
-## Groups     1 0.11959 0.119590   3.752 0.07664 .
-## Residuals 12 0.38248 0.031873                  
+## Groups     1 0.11638 0.116379  3.5611 0.08357 .
+## Residuals 12 0.39217 0.032681                  
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
-<p>A values of less than 0.05 for betadisper suggests that the sampletype has a significant differfences in overall microbiota composition.</p>
+<p>betadisper test supports that the sampletype explains major differfences in overall microbiota composition.</p>
 </div>
 <div id="quantifying-group-divergence-spread" class="section level2">
 <h2>Quantifying group divergence / spread</h2>
@@ -570,11 +545,11 @@ dif.g &lt;-<span class="st"> </span>reshape2::<span class="kw">melt</span>(div_d
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ggpubr::<span class="kw">ggboxplot</span>(dif.g, <span class="st">&quot;variable&quot;</span>, <span class="st">&quot;value&quot;</span>, 
                   <span class="dt">ylab =</span> <span class="st">&quot;Divergence&quot;</span>, 
                   <span class="dt">xlab =</span> <span class="st">&quot;Sample Type&quot;</span>, 
-                  <span class="dt">add =</span> <span class="st">&quot;dotplot&quot;</span>,
+                  <span class="dt">add =</span> <span class="st">&quot;jitter&quot;</span>,
                   <span class="dt">fill =</span> <span class="st">&quot;variable&quot;</span>,
                   <span class="dt">palette =</span> <span class="kw">c</span>(<span class="st">&quot;#a6cee3&quot;</span>, <span class="st">&quot;#b2df8a&quot;</span>))</code></pre></div>
-<pre><code>## `stat_bindot()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-23-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-25-1.png" width="768" /></p>
+<p>The biopsies tend to have smaller values, indicating that the samples are more similar to the group mean, and the biopsy is less heterogeneous (has smaller spread / is more homogeneous).</p>
 </div>
 <div id="composition" class="section level2">
 <h2>Composition</h2>
@@ -603,8 +578,8 @@ new.tax &lt;-<span class="st"> </span><span class="kw">tax_table</span>(taxmat)
 p.phy &lt;-<span class="st"> </span><span class="kw">plot_composition</span>(pseq.ph, <span class="dt">sample.sort =</span> <span class="ot">NULL</span>, <span class="dt">otu.sort =</span> <span class="ot">NULL</span>,
   <span class="dt">x.label =</span> <span class="st">&quot;SampleType&quot;</span>, <span class="dt">plot.type =</span> <span class="st">&quot;barplot&quot;</span>, <span class="dt">verbose =</span> <span class="ot">FALSE</span>)
 
-<span class="kw">print</span>(p.phy +<span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Paired&quot;</span>))</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-25-1.png" width="768" /></p>
+<span class="kw">print</span>(p.phy +<span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Paired&quot;</span>) +<span class="st"> </span><span class="kw">theme_bw</span>())</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-27-1.png" width="768" /></p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># it would be nice to have the Taxonomic names in italics.</span>
 <span class="co"># for that we set this</span>
 guide_italics &lt;-<span class="st"> </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="kw">guide_legend</span>(<span class="dt">label.theme =</span> <span class="kw">element_text</span>(<span class="dt">size =</span> <span class="dv">15</span>, 
@@ -613,11 +588,14 @@ guide_italics &lt;-<span class="st"> </span><span class="kw">guides</span>(<span
 pseq.ph.rel &lt;-<span class="st"> </span>microbiome::<span class="kw">transform</span>(pseq.ph, <span class="st">&quot;compositional&quot;</span>)
 
 
-plot.comp.rel &lt;-<span class="st"> </span><span class="kw">plot_composition</span>(pseq.ph.rel, <span class="dt">x.label =</span> <span class="st">&quot;SampleType&quot;</span>) +<span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">&quot;bottom&quot;</span>) +<span class="st"> </span><span class="kw">theme_bw</span>() +<span class="st"> </span>
-<span class="st">    </span><span class="kw">theme</span>(<span class="dt">axis.text.x =</span> <span class="kw">element_text</span>(<span class="dt">angle =</span> <span class="dv">90</span>)) +<span class="st"> </span>
-<span class="st">  </span><span class="kw">ggtitle</span>(<span class="st">&quot;Relative abundance&quot;</span>) +<span class="st"> </span>guide_italics +<span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.title =</span> <span class="kw">element_text</span>(<span class="dt">size=</span><span class="dv">18</span>))
-plot.comp.rel +<span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette =</span> <span class="st">&quot;Paired&quot;</span>)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-26-1.png" width="768" /></p>
+plot.comp.rel &lt;-<span class="st"> </span><span class="kw">plot_composition</span>(pseq.ph.rel, <span class="dt">x.label =</span> <span class="st">&quot;SampleType&quot;</span>) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">&quot;bottom&quot;</span>) +<span class="st"> </span><span class="kw">theme_bw</span>() +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">axis.text.x =</span> <span class="kw">element_text</span>(<span class="dt">angle =</span> <span class="dv">90</span>)) +<span class="st"> </span>
+<span class="st">  </span><span class="kw">ggtitle</span>(<span class="st">&quot;Relative abundance&quot;</span>) +<span class="st"> </span>guide_italics +<span class="st"> </span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">legend.title =</span> <span class="kw">element_text</span>(<span class="dt">size=</span><span class="dv">18</span>))
+
+plot.comp.rel +<span class="st"> </span><span class="kw">scale_fill_brewer</span>( <span class="st">&quot;Phylum&quot;</span>,<span class="dt">palette =</span> <span class="st">&quot;Paired&quot;</span>)</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-28-1.png" width="768" /></p>
 </div>
 <div id="boxplot" class="section level2">
 <h2>Boxplot</h2>
@@ -625,7 +603,7 @@ plot.comp.rel +<span class="st"> </span><span class="kw">scale_fill_brewer</span
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pn &lt;-<span class="st"> </span><span class="kw">plot_taxa_boxplot</span>(ps4.rel, <span class="st">&quot;Genus&quot;</span>, <span class="dv">10</span>, <span class="st">&quot;SampleType&quot;</span>, <span class="dt">color =</span> <span class="st">&quot;Set2&quot;</span>, <span class="st">&quot;Relative abundance of top 10 genera&quot;</span>)</code></pre></div>
 <pre><code>## The phy_tree slot is empty, easy to make the plot</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(pn)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-27-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-29-1.png" width="768" /></p>
 </div>
 <div id="core-microbiota" class="section level2">
 <h2>Core microbiota</h2>
@@ -661,22 +639,25 @@ prevalences &lt;-<span class="st"> </span><span class="kw">seq</span>(.<span cla
 detections &lt;-<span class="st"> </span><span class="dv">10</span>^<span class="kw">seq</span>(<span class="kw">log10</span>(<span class="fl">1e-3</span>), <span class="kw">log10</span>(.<span class="dv">2</span>), <span class="dt">length =</span> <span class="dv">10</span>)
 <span class="co">#(1e-3) = 0.001% abundance; change &quot;-3&quot; to -2 to increase to 0.01%</span>
 
-p &lt;-<span class="st"> </span><span class="kw">plot_core</span>(ps1.bx.gen, <span class="dt">plot.type =</span> <span class="st">&quot;heatmap&quot;</span>, <span class="dt">colours =</span> <span class="kw">rev</span>(<span class="kw">brewer.pal</span>(<span class="dv">5</span>, <span class="st">&quot;Spectral&quot;</span>)),
-<span class="dt">min.prevalence =</span> <span class="fl">0.9</span>, <span class="dt">prevalences =</span> prevalences, <span class="dt">detections =</span> detections) +
-<span class="kw">xlab</span>(<span class="st">&quot;Detection Threshold (Relative Abundance (%))&quot;</span>)
+p &lt;-<span class="st"> </span><span class="kw">plot_core</span>(ps1.bx.gen, <span class="dt">plot.type =</span> <span class="st">&quot;heatmap&quot;</span>, 
+               <span class="dt">colours =</span> <span class="kw">rev</span>(<span class="kw">brewer.pal</span>(<span class="dv">10</span>, <span class="st">&quot;Spectral&quot;</span>)),
+               <span class="dt">min.prevalence =</span> <span class="fl">0.9</span>, 
+               <span class="dt">prevalences =</span> prevalences, 
+               <span class="dt">detections =</span> detections) +
+<span class="st">  </span><span class="kw">xlab</span>(<span class="st">&quot;Detection Threshold (Relative Abundance (%))&quot;</span>)
 <span class="kw">print</span>(p)</code></pre></div>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-28-1.png" width="768" /></p>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-30-1.png" width="576" /></p>
 </div>
 <div id="heatmap" class="section level2">
 <h2>Heatmap</h2>
-<p>We already have data in relative abundance, hence transformation will not be included. Plot top 20 OTUs.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">heat.sample &lt;-<span class="st"> </span><span class="kw">microbiome_heatmap</span>(ps1a, <span class="dt">subset_otu =</span> <span class="dv">20</span>,
+<p>We have data in counts, hence transformation to log10(x+1) will be done for better plotting. Plot top 20 OTUs.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ps1.c &lt;-<span class="st"> </span><span class="kw">format_to_besthit</span>(ps1a)
+
+heat.sample &lt;-<span class="st"> </span><span class="kw">plot_taxa_heatmap</span>(ps1a, <span class="dt">subset.top =</span> <span class="dv">20</span>,
     <span class="dt">VariableA =</span> <span class="st">&quot;SampleType&quot;</span>,
-    <span class="dt">heatcolors =</span> <span class="ot">NA</span>,
-    <span class="dt">transformation =</span> <span class="st">&quot;compositional&quot;</span>)</code></pre></div>
-<pre><code>## Top 20 OTUs selected</code></pre>
-<pre><code>## log10, if zeros in data then log10(1+x) will be used</code></pre>
-<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-29-1.png" width="768" /></p>
+    <span class="dt">heatcolors =</span> <span class="kw">rev</span>(<span class="kw">brewer.pal</span>(<span class="dv">100</span>, <span class="st">&quot;Blues&quot;</span>)),
+    <span class="dt">transformation =</span> <span class="st">&quot;log10&quot;</span>)</code></pre></div>
+<p><img src="microbiome_tutorial_files/figure-html/unnamed-chunk-31-1.png" width="1152" /></p>
 </div>
 <div id="references" class="section level1">
 <h1>References</h1>
@@ -712,38 +693,38 @@ p &lt;-<span class="st"> </span><span class="kw">plot_core</span>(ps1.bx.gen, <s
 ## other attached packages:
 ##  [1] vegan_2.4-5               lattice_0.20-35          
 ##  [3] permute_0.9-4             bindrcpp_0.2             
-##  [5] viridis_0.4.0             viridisLite_0.2.0        
-##  [7] microbiomeutilities_0.1.1 RColorBrewer_1.1-2       
-##  [9] reshape2_1.4.3            ggpubr_0.1.6             
-## [11] magrittr_1.5              knitr_1.17               
-## [13] microbiome_1.1.2          ggplot2_2.2.1            
-## [15] phyloseq_1.20.0          
+##  [5] tibble_1.3.4              viridis_0.4.0            
+##  [7] viridisLite_0.2.0         microbiomeutilities_0.1.1
+##  [9] RColorBrewer_1.1-2        reshape2_1.4.3           
+## [11] ggpubr_0.1.6              magrittr_1.5             
+## [13] knitr_1.17                microbiome_1.1.2         
+## [15] ggplot2_2.2.1             phyloseq_1.20.0          
 ## 
 ## loaded via a namespace (and not attached):
 ##  [1] Biobase_2.36.2      tidyr_0.7.2         jsonlite_1.5       
 ##  [4] splines_3.4.1       foreach_1.4.3       shiny_1.0.5        
-##  [7] moments_0.14        assertthat_0.2.0    highr_0.6          
-## [10] stats4_3.4.1        yaml_2.1.14         backports_1.1.1    
+##  [7] assertthat_0.2.0    highr_0.6           stats4_3.4.1       
+## [10] yaml_2.1.14         ggrepel_0.7.0       backports_1.1.1    
 ## [13] glue_1.1.1          digest_0.6.12       XVector_0.16.0     
 ## [16] colorspace_1.3-2    htmltools_0.3.6     httpuv_1.3.5       
 ## [19] Matrix_1.2-11       plyr_1.8.4          pkgconfig_2.0.1    
 ## [22] pheatmap_1.0.8      questionr_0.6.1     bookdown_0.5       
 ## [25] zlibbioc_1.22.0     purrr_0.2.3         xtable_1.8-2       
-## [28] scales_0.5.0        tibble_1.3.4        mgcv_1.8-22        
-## [31] IRanges_2.10.4      BiocGenerics_0.22.0 lazyeval_0.2.0     
-## [34] survival_2.41-3     mime_0.5            evaluate_0.10.1    
-## [37] nlme_3.1-131        MASS_7.3-47         tools_3.4.1        
-## [40] data.table_1.10.4-3 stringr_1.2.0       S4Vectors_0.14.6   
-## [43] munsell_0.4.3       cluster_2.0.6       Biostrings_2.44.2  
-## [46] ade4_1.7-8          compiler_3.4.1      rlang_0.1.2.9000   
-## [49] rhdf5_2.20.0        grid_3.4.1          iterators_1.0.8    
-## [52] biomformat_1.4.0    rstudioapi_0.7      igraph_1.1.2       
-## [55] miniUI_0.1.1        labeling_0.3        rmarkdown_1.6      
-## [58] gtable_0.2.0        codetools_0.2-15    multtest_2.32.0    
-## [61] R6_2.2.2            gridExtra_2.3       dplyr_0.7.4        
-## [64] bindr_0.1           rprojroot_1.2       ape_5.0            
-## [67] stringi_1.1.5       parallel_3.4.1      rmdformats_0.3.3   
-## [70] Rcpp_0.12.13        tidyselect_0.2.0</code></pre>
+## [28] scales_0.5.0        mgcv_1.8-22         IRanges_2.10.4     
+## [31] BiocGenerics_0.22.0 lazyeval_0.2.0      survival_2.41-3    
+## [34] mime_0.5            evaluate_0.10.1     nlme_3.1-131       
+## [37] MASS_7.3-47         tools_3.4.1         data.table_1.10.4-3
+## [40] stringr_1.2.0       S4Vectors_0.14.6    munsell_0.4.3      
+## [43] cluster_2.0.6       Biostrings_2.44.2   ade4_1.7-8         
+## [46] compiler_3.4.1      rlang_0.1.2.9000    rhdf5_2.20.0       
+## [49] grid_3.4.1          iterators_1.0.8     biomformat_1.4.0   
+## [52] rstudioapi_0.7      igraph_1.1.2        miniUI_0.1.1       
+## [55] labeling_0.3        rmarkdown_1.6       gtable_0.2.0       
+## [58] codetools_0.2-15    multtest_2.32.0     R6_2.2.2           
+## [61] gridExtra_2.3       dplyr_0.7.4         bindr_0.1          
+## [64] rprojroot_1.2       ape_5.0             stringi_1.1.5      
+## [67] parallel_3.4.1      rmdformats_0.3.3    Rcpp_0.12.13       
+## [70] tidyselect_0.2.0</code></pre>
 <p>Kindly cite this work as follows: “Leo Lahti, Sudarshan Shetty et al. (2017). Tools for microbiome analysis in R. Version 1.1.2. URL: <a href="http://microbiome.github.com/microbiome" class="uri">http://microbiome.github.com/microbiome</a>. Check also the relevant references listed in the manual page of each function.</p>
 <p>The package utilizes tools from a number of other R extensions, including dplyr (Wickham, Francois, Henry, et al., 2017), ggplot2 (Wickham, 2009), phyloseq (McMurdie and Holmes, 2013), tidyr (Wickham, 2017), vegan (Oksanen, Blanchet, Friendly, et al., 2017).</p>
 <p>This website theme was created by modifiying the rmdformats readthedown format.</p>
@@ -755,7 +736,7 @@ p &lt;-<span class="st"> </span><span class="kw">plot_core</span>(ps1.bx.gen, <s
 
 <div id="postamble" data-toggle="wy-nav-shift" class="status">
 <p class="author"><span class="glyphicon glyphicon-user"></span> Sudarshan A. Shetty</p>
-<p class="date"><span class="glyphicon glyphicon-calendar"></span> 2017-12-27</p>
+<p class="date"><span class="glyphicon glyphicon-calendar"></span> 2017-12-30</p>
 </div>
 
 

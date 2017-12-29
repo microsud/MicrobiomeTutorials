@@ -1,6 +1,4 @@
 
-
-
 ---
 title: "Tutorials for microbiome analysis"
 ---
@@ -8,7 +6,7 @@ title: "Tutorials for microbiome analysis"
 # Tutorials
 
 
-**This website is still being developed, please do not use any of the information linked for analysis.**
+**This website is under active development. NO warranty for any damages is given by the developers of this webpage. USE AT OWN RISK. Content can change anytime without prior notice.**
 
 * [Microbiome Anlaysis Tutorial](microbiome_tutorial.html)
 
